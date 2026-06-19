@@ -3,6 +3,7 @@
 Build a minimal production-leaning service that can **handle load**, **rate limit**, and **avoid duplicates** via idempotency.
 
 ## Endpoints (to keep)
+
 - `POST /v1/signals`
   - body: `{ "userId": "string", "type": "string", "payload": "string" }`
   - headers: `X-API-Key`, `Idempotency-Key` (optional)
@@ -13,6 +14,7 @@ Build a minimal production-leaning service that can **handle load**, **rate limi
 - `GET /healthz`
 
 ## Your Tasks
+
 1. **Implement a robust rate limiter** in `src/rateLimit.js`.
 2. **Make idempotency safe across scale** in `src/signals.js`.
 3. **Handle DB failure** gracefully with retry/backoff.
@@ -20,9 +22,26 @@ Build a minimal production-leaning service that can **handle load**, **rate limi
 5. **Finish the tests** in `tests/*.test.js`.
 
 ## Deliverables
+
 - Working service, passing tests, updated README, SCALE.md.
 - Optional deploy link.
+
 ---
+
+## Implementation notes
+
+- Rate limiting is enforced per `userId` with a fixed one-minute window and deterministic remaining/reset metadata.
+- Idempotency is backed by a database-level unique constraint on `idempotency_key` and an atomic `INSERT OR IGNORE` flow that returns the existing resource on retries.
+- Transient database failures are retried with exponential backoff and jitter. Idempotent writes are safe to retry because duplicate creation is prevented by the unique key.
+- SQLite is configured with WAL mode and a busy timeout for better local concurrency behavior. `SCALE.md` explains the Redis/PostgreSQL architecture needed for multi-instance production scale.
+
+## Useful commands
+
+```bash
+npm install
+npm test
+npm run dev
+```
 
 ## Extra Production Constraints (must pass)
 

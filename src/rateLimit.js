@@ -1,18 +1,30 @@
-const RATE = Number(process.env.RATE_LIMIT_PER_MIN || 5);
 const WINDOW_MS = 60_000;
 const buckets = new Map();
 
+function getRate() {
+  const rate = Number(process.env.RATE_LIMIT_PER_MIN || 5);
+  return Number.isFinite(rate) && rate > 0 ? Math.floor(rate) : 5;
+}
+
 export function checkAndConsume(userId, nowMs = Date.now()) {
-  const wStart = nowMs - WINDOW_MS;
-  const ent = buckets.get(userId) || { ts: nowMs, cnt: 0 };
-  if (ent.ts < wStart) {
-    ent.ts = nowMs;
-    ent.cnt = 0;
+  const rate = getRate();
+  const windowStart = Math.floor(nowMs / WINDOW_MS) * WINDOW_MS;
+  const ent = buckets.get(userId) || { windowStart, count: 0 };
+
+  if (ent.windowStart !== windowStart) {
+    ent.windowStart = windowStart;
+    ent.count = 0;
   }
-  ent.cnt += 1;
+
+  ent.count += 1;
   buckets.set(userId, ent);
-  const ok = ent.cnt <= RATE;
-  const resetMs = ent.ts + WINDOW_MS;
-  const remaining = Math.max(RATE - ent.cnt, 0);
+
+  const ok = ent.count <= rate;
+  const resetMs = ent.windowStart + WINDOW_MS;
+  const remaining = Math.max(rate - ent.count, 0);
   return { ok, remaining, resetMs };
+}
+
+export function resetRateLimits() {
+  buckets.clear();
 }
